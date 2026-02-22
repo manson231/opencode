@@ -30,6 +30,18 @@ type LSResponseMetadata struct {
 
 type lsTool struct{}
 
+func workingDirectory() string {
+	// Tools should be safe to run in unit tests or other contexts where the
+	// application config hasn't been loaded.
+	if config.Get() != nil {
+		return config.WorkingDirectory()
+	}
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		return wd
+	}
+	return "."
+}
+
 const (
 	LSToolName    = "ls"
 	MaxLSFiles    = 1000
@@ -95,12 +107,13 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	}
 
 	searchPath := params.Path
+	wd := workingDirectory()
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		searchPath = wd
 	}
 
 	if !filepath.IsAbs(searchPath) {
-		searchPath = filepath.Join(config.WorkingDirectory(), searchPath)
+		searchPath = filepath.Join(wd, searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
